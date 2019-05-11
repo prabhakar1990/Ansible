@@ -1,0 +1,223 @@
+﻿
+##Pre-Requisites
+	Version Control System Knowledge
+	Linux Commands
+	What is Deployment and how Deployments are been done 
+	What is CI and CD
+	What is Infrastructure 
+	What is Environment ( Provisional Store ) - Machines, We need Network, Storage, X, y Z 
+	What is Provisioning ( Customer Needs is Provisioning ) Install and Configure
+	Gamutkart.com
+	Java, MYsQL, Maven, someother 
+
+## What is Ansible
+Ansible is a modern IT automation tool which makes your life easier by managing your servers for you. You just need
+to define the configuration in which you are interested and ansible will go ahead and do it for you, be it installing
+a package or configuring a server application or even restarting a service. Ansible is always ready to manage your
+servers.
+
+## Why do we need Ansible
+
+Managing a infrastructure/environment is easy. Managing 5 is do’able. Managing hundreds or more is a painful task without automation.
+Ansible is designed to be simple and effective. You can create identical, replicable servers and clusters of servers in a
+painless and reliable manner
+
+## Ansible offerings
+
+Configuration Management
+Deployments
+Provisioning
+Orchestration :: Different tasks on different hosts
+
+## Why use Ansible
+
+It is a free open source application by RedHat
+It is Idempotent which is extremely important and useful 
+Cross Platform Support --> Installed ansible in Ubuntu ---> deployments to be done in CentOs/Fedora/RHEL/Windows
+Agent-less Architecture 
+Highly flexible and configuration management of systems
+Large number of ready to use modules for system management 
+Custom modules can be added if needed
+Configuration roll-back in case of error 
+Simple and human readable as it follows YAML langauge
+Easy to manage in VCS and easy also easy to build CI pipeline
+Self documenting
+
+
+Installation of Ansible
+
+$ sudo apt-get update
+$ sudo apt-get install software-properties-common
+$ sudo apt-add-repository --yes --update ppa:ansible/ansible
+$ sudo apt-get install ansible
+
+## Ansible Architecture
+
+sudo apt-get install ansible
+
+Ansible.cfg
+	This the location where all configuration settings can be managed
+	Default location is /etc/ansible/ansible.cfg
+	/opt/gamut/deployments --> place all our ansible configurations
+	
+	Precedence
+	1. ANSIBLE_CONFIG		--> create ansible.cfg file and export ANSIBLE_CONFIG=location of file
+	2. ./ansible.cfg
+	3. ~/.ansible.cfg
+	4. /etc/ansible/ansible.cfg
+	
+	
+	
+	Main sections are --> 
+						Defaults :: most of settings listed here ( inventory, remote_user, ask_pass etc )
+						Privilege Escalation :: like Sudo. Defines operations that require escalated privileges in managed hosts for "Unprivileged user"
+												become=true (non-privileged user)
+												become-method=sudo
+												become-user=root
+												become-ask-pass=false
+						Paramiko-connection, SSH-connection, Accelerate :: settings to optimize connections to managed hosts
+						Selinux :: SeLinux Settings
+Control Nodes --
+	Managed by Admins which has copies of all projects. 
+	Control Node will run playbooks.
+	Control Node is the Ansible Server
+	
+Managed Hosts --
+    server will have an IP 11.22.33.111 or DNS bng.gamut.com
+	These are servers listed in the host file
+	Servers can be clustered and can be in groups for easy deployments
+	Authorized_key Module with ask-pass option
+	
+Modules -- 
+	Every action ( task ) which needs to take place from Control Node to Managed Node is done using Ansible Modules
+	Hundreds of supported modules are already available for Linux/Windows.
+	Custom Modules can also be built using Python
+	Modules will inturn have actual tasks they have to perform
+	ansible-doc -l ( lists all modules installed )
+
+	Location of all Ansible Modules ::
+		https://docs.ansible.com/ansible/latest/modules/modules_by_category.html
+
+YAML
+	should start with three -
+	end with three .
+	No tabs
+	follows strict indendation, always by 2 spaces
+	follows key value pair model. eg training: ansible
+	Strings can be without quotes, single quotes and double quotes
+	\n characters should be in double quotes
+	integers are automatically interpreted, example a = 1
+	integers should not be in double quotes, if it is then it is a string
+	list represened as below
+		- example 1
+		- example 2
+	
+	ansible-playbook abc.yml --syntax-check
+
+
+Inventories -- 
+	Managed hosts are defined in inventories
+	Inventories can be Static or Dynamic. 
+		Dynamic inventories 
+			Few examples of Dynamic Inventories --> DB, Docker Containers, AWS Public IPs, New Infra with provisioning
+			achieved by using external scripts, these scripts are not officially supported by RedHat
+	Location of inventory files can be defined in Ansible.cfg file or while execution of playbook
+	Inventories can be classified into groups and few examples below
+	
+	/opt/gamut/deployments ---> project Location
+	inventories
+	abc.yml
+	
+	ansible-playbook -i /opt/gamut/deployments ansibletraining.yml
+	
+	1
+		[webservers_dns]
+		bng.gamut.com
+		chennai.gamut.com
+	2
+		[appservers_ips]
+		11.22.33.44
+		11.22.33.45
+		
+	3	[global_dnsplusip]
+		bng.gamut.com
+		11.22.44.55
+	
+	4	[wwgroup:children]
+		webservers_dns
+		appservers_ips
+		global_dnsplusip
+	
+	5	[gamutservers_range]
+		server=bng23.gamut.com
+		bng[01:09].gamut.com
+		bng01.gamut.com
+		bng02.gamut.com
+		bng03.gamut.com
+		etc
+		
+	6	192.168.[4:7].[0:9]
+		192.168.4.0
+		192.168.4.1
+		192.168.4.3 ( 50- 60 ips in this range )
+		
+	7   You can exclude groups as well, for instance, all machines must be in the group webservers but not in the group phoenix:
+		webservers:!phoenix	
+	
+	  
+		
+
+Ansible Facts -- 
+		they are variables that are automatically discoverd by ansible while running playbook. It will run setup module by default
+		Facts contain host specific information that can be used as variables in plays
+		Few facts which will be considered/picked up by ansible from Managed Node::
+		host name, ip address, OS version, various system environment variables, number of CPUs, available disk space etc
+		use cases: 
+			run database update only when available disc space is more than 10GB
+			restart the managed host based on the OS version
+			
+	Gather facts by using below ansible command ::
+				ansible bng01.gamut.com -m setup (setup is the module)
+				can be accessed through debug module
+				
+				hosts: all
+
+  # Task: the list of tasks that will be executed within the play, this section
+  # can also be used for pre and post tasks
+  tasks:
+    - name: Show IP Address
+      debug:
+        msg: "{{ ansible_default_ipv4.address }}"
+		
+	We can have custom facts as well, but they are useful only on control node. default location of facts is /etc/ansible/facts.d
+	if we need these facts in the Managed hosts as well, then we will need to copy this file to the remote machines using file and copy modules
+	##name of file is "date"
+	#!/bin/bash
+	echo [date]
+	echo date=`date`
+	
+	ansible {ip/hostname} -m setup -a 'filter=ansible_local'
+	
+
+	
+	
+	* we can turn off gathering facts by setting them to NO
+				gather_facts: no
+
+				
+				
+				
+DEMO
+
+
+ansible localhost -m ping
+ansible localhost -m setup
+ansible localhost -m setup -a 'filter=ansible_distribution'
+
+ - name: clone from git
+       git:
+         repo: https://ubuntu@github.com/nageshvkn/gamutkart2.git
+         #repo: '{{gitrepo}}'
+         dest: /tmp/test
+         version : master
+
